@@ -1,16 +1,25 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  simple-websockets-chat-app
+  elm-chat-app
 
-  SAM Template for simple-websockets-chat-app that has the DynamoDB table and Lambda
+  SAM Template for elm-chat-app that has the DynamoDB table and Lambda
   functions needed to demonstrate the Websocket protocol on API Gateway.
 
 Parameters:
-  TableName:
+  ConnectionsTableName:
     Type: String
-    Default: 'simplechat_connections'
+    Default: 'elm_chat_connections'
     Description: (Required) The name of the new DynamoDB to store connection identifiers for each connected clients. Minimum 3 characters
+    MinLength: 3
+    MaxLength: 50
+    AllowedPattern: ^[A-Za-z_]+$
+    ConstraintDescription: 'Required. Can be characters and underscore only. No numbers or special characters allowed.'
+
+  MessagesTableName:
+    Type: String
+    Default: 'elm_chat_messages'
+    Description: '(Required) The name of the new DynamoDB to store connection identifiers for each connected clients. Minimum 3 characters'
     MinLength: 3
     MaxLength: 50
     AllowedPattern: ^[A-Za-z_]+$
@@ -20,9 +29,9 @@ Resources:
   SimpleChatWebSocket:
     Type: AWS::ApiGatewayV2::Api
     Properties:
-      Name: SimpleChatWebSocket
+      Name: ElmChatApi
       ProtocolType: WEBSOCKET
-      RouteSelectionExpression: "$request.body.message"
+      RouteSelectionExpression: "$request.body.action"
   ConnectRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:
@@ -67,7 +76,7 @@ Resources:
     Type: AWS::ApiGatewayV2::Route
     Properties:
       ApiId: !Ref SimpleChatWebSocket
-      RouteKey: sendmessage
+      RouteKey: sendMessage
       AuthorizationType: NONE
       OperationName: SendRoute
       Target: !Join
@@ -112,7 +121,22 @@ Resources:
         WriteCapacityUnits: 5
       SSESpecification:
         SSEEnabled: True
-      TableName: !Ref TableName
+      TableName: !Ref ConnectionsTableName
+  MessagesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: "id"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "id"
+          KeyType: "HASH"
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      SSESpecification:
+        SSEEnabled: True
+      TableName: !Ref MessagesTableName
   OnConnectFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -122,10 +146,10 @@ Resources:
       Runtime: nodejs10.x
       Environment:
         Variables:
-          TABLE_NAME: !Ref TableName
+          TABLE_NAME: !Ref ConnectionsTableName
       Policies:
       - DynamoDBCrudPolicy:
-          TableName: !Ref TableName
+          TableName: !Ref ConnectionsTableName
   OnConnectPermission:
     Type: AWS::Lambda::Permission
     DependsOn:
@@ -144,10 +168,10 @@ Resources:
       Runtime: nodejs10.x
       Environment:
         Variables:
-          TABLE_NAME: !Ref TableName
+          TABLE_NAME: !Ref ConnectionsTableName
       Policies:
       - DynamoDBCrudPolicy:
-          TableName: !Ref TableName
+          TableName: !Ref ConnectionsTableName
   OnDisconnectPermission:
     Type: AWS::Lambda::Permission
     DependsOn:
@@ -166,10 +190,13 @@ Resources:
       Runtime: nodejs10.x
       Environment:
         Variables:
-          TABLE_NAME: !Ref TableName
+          CONNECTIONS_TABLE_NAME: !Ref ConnectionsTableName
+          MESSAGES_TABLE_NAME: !Ref MessagesTableName
       Policies:
       - DynamoDBCrudPolicy:
-          TableName: !Ref TableName
+          TableName: !Ref ConnectionsTableName
+      - DynamoDBCrudPolicy:
+          TableName: !Ref MessagesTableName
       - Statement:
         - Effect: Allow
           Action:

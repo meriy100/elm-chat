@@ -48,7 +48,7 @@ update msg model =
       )
     Submit value ->
       ( model
-      , websocketOut ("{ \"message\": \"sendmessage\", \"data\" : \"" ++ value ++ "\" }")
+      , websocketOut ("{ \"action\": \"sendMessage\", \"data\": {  \"message\": \"" ++ value ++ "\" } }")
       )
     WebsocketIn value ->
       ( { model | responses = value :: model.responses }
