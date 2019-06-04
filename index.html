@@ -9,10 +9,8 @@
     <script>
         var app = Elm.Main.init({node: document.getElementById("elm-node")});
         var ws = new WebSocket("wss://d5ekser3pa.execute-api.ap-northeast-1.amazonaws.com/Prod");
-        ws.onmessage = function(message)
-        {
-            console.log(message);
-            app.ports.websocketIn.send(JSON.stringify({data: message.data, timeStamp: message.timeStamp}));
+        ws.onmessage = function(message) {
+            app.ports.websocketIn.send(message.data);
         };
         app.ports.websocketOut.subscribe(function(msg) { ws.send(msg); });
     </script>

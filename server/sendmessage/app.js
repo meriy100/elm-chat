@@ -23,12 +23,12 @@ exports.handler = async (event, context) => {
     endpoint: event.requestContext.domainName + '/' + event.requestContext.stage
   });
 
-  const { message } = JSON.parse(event.body).data;
+  const { content } = JSON.parse(event.body).data;
   const putParams = {
     TableName: MESSAGES_TABLE_NAME,
     Item: {
       id: uuid.v1(),
-      message: message
+      content: content
     }
   };
 
@@ -40,7 +40,7 @@ exports.handler = async (event, context) => {
     }
   });
 
-  const postData = JSON.stringify({ type: 'POSTED_MESSAGE', message: message });
+  const postData = JSON.stringify({ type: 'POSTED_MESSAGE', payload: putParams.Item });
 
   const postCalls = connectionData.Items.map(async ({ connectionId }) => {
     try {
