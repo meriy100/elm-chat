@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="index.js"></script>
+    <title>Elm App</title>
+</head>
+<body>
+    <div id="elm-node"></div>
+    <script>
+        var app = Elm.Main.init({node: document.getElementById("elm-node")});
+        var ws = new WebSocket("wss://5sxjc6smrc.execute-api.ap-northeast-1.amazonaws.com/Prod");
+        ws.onmessage = function(message)
+        {
+            console.log(message);
+            app.ports.websocketIn.send(JSON.stringify({data: message.data, timeStamp: message.timeStamp}));
+        };
+        app.ports.websocketOut.subscribe(function(msg) { ws.send(msg); });
+    </script>
+</body>
+</html>
