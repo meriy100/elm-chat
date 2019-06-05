@@ -53,7 +53,7 @@ update msg model =
       )
     Submit value ->
       ( model
-      , websocketOut ("{ \"action\": \"sendMessage\", \"data\": {  \"content\": \"" ++ value ++ "\" } }")
+      , websocketOut ("{ \"action\": \"sendMessage\", \"data\": {  \"message\": { \"content\": \"" ++ value ++ "\" } } }")
       )
     WebsocketIn value ->
         case decodeString WebsocketResponse.typeDecoder value of

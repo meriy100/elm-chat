@@ -5,7 +5,7 @@ var AWS = require("aws-sdk");
 AWS.config.update({ region: process.env.AWS_REGION });
 const ddb = new AWS.DynamoDB.DocumentClient({ apiVersion: '2012-08-10' });
 
-const { CONNECTIONS_TABLE_NAME, MESSAGES_TABLE_NAME } = process.env;
+const { CONNECTIONS_TABLE_NAME } = process.env;
 
 exports.handler = async (event, context) => {
   console.log(event);

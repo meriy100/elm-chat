@@ -6,7 +6,7 @@ const AWS = require('aws-sdk');
 
 const ddb = new AWS.DynamoDB.DocumentClient({ apiVersion: '2012-08-10' });
 
-const { CONNECTIONS_TABLE_NAME, MESSAGES_TABLE_NAME } = process.env;
+const { CONNECTIONS_TABLE_NAME, ROOMS_TABLE_NAME } = process.env;
 
 exports.handler = async (event, context) => {
   let connectionData;
@@ -23,24 +23,34 @@ exports.handler = async (event, context) => {
     endpoint: event.requestContext.domainName + '/' + event.requestContext.stage
   });
 
-  const { content } = JSON.parse(event.body).data;
-  const putParams = {
-    TableName: MESSAGES_TABLE_NAME,
-    Item: {
-      id: uuid.v1(),
-      content: content
-    }
+  // const { id } = JSON.parse(event.body).id;
+  const id = '1';
+  const { message } = JSON.parse(event.body).data;
+  const roomData = await ddb.get({ TableName: ROOMS_TABLE_NAME, Key: { id: id } }).promise();
+  const newMessage = { id: uuid.v1(), content: message.content, timestamp: Number(Math.floor(Date.now() / 1000)) };
+
+  const params = {
+    TableName: ROOMS_TABLE_NAME,
+    Key: {
+      id: roomData.Item.id
+    },
+    ExpressionAttributeNames: {
+      '#ms': 'messages',
+    },
+    ExpressionAttributeValues: {
+      ':messages': [...roomData.Item.messages, newMessage],
+    },
+    UpdateExpression: 'SET #ms = :messages'
   };
 
-  ddb.put(putParams, (err, data) => {
-    if (!!err) {
-      console.log("Error: putItem" + JSON.stringify(err));
-      return { statusCode: 500, body: err };
-    } else {
-    }
-  });
+  try {
+    await ddb.update(params).promise();
+  } catch(e) {
+    console.log(e);
+    return { statusCode: 500, body: JSON.stringify(e) }
+  }
 
-  const postData = JSON.stringify({ type: 'POSTED_MESSAGE', payload: putParams.Item });
+  const postData = JSON.stringify({ type: 'POSTED_MESSAGE', payload: newMessage });
 
   const postCalls = connectionData.Items.map(async ({ connectionId }) => {
     try {

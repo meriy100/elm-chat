@@ -16,9 +16,9 @@ Parameters:
     AllowedPattern: ^[A-Za-z_]+$
     ConstraintDescription: 'Required. Can be characters and underscore only. No numbers or special characters allowed.'
 
-  MessagesTableName:
+  RoomsTableName:
     Type: String
-    Default: 'elm_chat_messages'
+    Default: 'elm_chat_rooms'
     Description: '(Required) The name of the new DynamoDB to store connection identifiers for each connected clients. Minimum 3 characters'
     MinLength: 3
     MaxLength: 50
@@ -92,6 +92,17 @@ Resources:
       IntegrationUri: 
         Fn::Sub:
             arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SendMessageFunction.Arn}/invocations
+#  GetRoomsRoute:
+#    Type: AWS::ApiGatewayV2::Route
+#    Properties:
+#      ApiId: !Ref SimpleChatWebSocket
+#      RouteKey: getRooms
+#      AuthorizationType: NONE
+#      OperationName: GetRoomsRoute
+#      Target: !Join
+#        - '/'
+#        - - 'integrations'
+#          - !Ref GetRoomsInteg
   Deployment:
     Type: AWS::ApiGatewayV2::Deployment
     DependsOn:
@@ -122,7 +133,7 @@ Resources:
       SSESpecification:
         SSEEnabled: True
       TableName: !Ref ConnectionsTableName
-  MessagesTable:
+  RoomsTable:
     Type: AWS::DynamoDB::Table
     Properties:
       AttributeDefinitions:
@@ -136,7 +147,7 @@ Resources:
         WriteCapacityUnits: 5
       SSESpecification:
         SSEEnabled: True
-      TableName: !Ref MessagesTableName
+      TableName: !Ref RoomsTableName
   OnConnectFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -147,12 +158,12 @@ Resources:
       Environment:
         Variables:
           CONNECTIONS_TABLE_NAME: !Ref ConnectionsTableName
-          MESSAGES_TABLE_NAME: !Ref MessagesTableName
+          ROOMS_TABLE_NAME: !Ref RoomsTableName
       Policies:
       - DynamoDBCrudPolicy:
           TableName: !Ref ConnectionsTableName
       - DynamoDBCrudPolicy:
-          TableName: !Ref MessagesTableName
+          TableName: !Ref RoomsTableName
   OnConnectPermission:
     Type: AWS::Lambda::Permission
     DependsOn:
@@ -194,12 +205,12 @@ Resources:
       Environment:
         Variables:
           CONNECTIONS_TABLE_NAME: !Ref ConnectionsTableName
-          MESSAGES_TABLE_NAME: !Ref MessagesTableName
+          ROOMS_TABLE_NAME: !Ref RoomsTableName
       Policies:
       - DynamoDBCrudPolicy:
           TableName: !Ref ConnectionsTableName
       - DynamoDBCrudPolicy:
-          TableName: !Ref MessagesTableName
+          TableName: !Ref RoomsTableName
       - Statement:
         - Effect: Allow
           Action:
