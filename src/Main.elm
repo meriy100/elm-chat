@@ -14,6 +14,8 @@ import Message as Message exposing (..)
 port websocketIn : (String -> msg) -> Sub msg
 -- JavaScript usage: app.ports.websocketOut.subscribe(handler);
 port websocketOut : String -> Cmd msg
+port websocketOnOpen : (String -> msg) -> Sub msg
+
 main = Browser.element
     { init = init
     , update = update
@@ -43,6 +45,11 @@ init _ =
 type Msg = Change String
     | Submit String
     | WebsocketIn String
+    | WebsocketOnOpen String
+
+getRooms : Cmd Msg
+getRooms =
+  websocketOut ("{ \"action\": \"getRooms\" }")
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -55,6 +62,8 @@ update msg model =
       ( model
       , websocketOut ("{ \"action\": \"sendMessage\", \"data\": {  \"message\": { \"content\": \"" ++ value ++ "\" } } }")
       )
+    WebsocketOnOpen _ ->
+      (model, getRooms)
     WebsocketIn value ->
         case decodeString WebsocketResponse.typeDecoder value of
             Ok "POSTED_MESSAGE" ->
@@ -76,7 +85,10 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    websocketIn WebsocketIn
+    Sub.batch
+        [ websocketIn WebsocketIn
+        , websocketOnOpen WebsocketOnOpen
+        ]
 
 {- VIEW -}
 

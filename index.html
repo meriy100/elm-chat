@@ -12,6 +12,9 @@
         ws.onmessage = function(message) {
             app.ports.websocketIn.send(message.data);
         };
+        ws.onopen = function(event) {
+            app.ports.websocketOnOpen.send("Connected");
+        };
         app.ports.websocketOut.subscribe(function(msg) { ws.send(msg); });
     </script>
 </body>
