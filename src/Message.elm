@@ -7,10 +7,6 @@ type alias Message =
     , content : String
     }
 
-init : Message
-init =
-    {id = Nothing, content = ""}
-
 decoder : Decoder Message
 decoder =
     Decode.map2 Message

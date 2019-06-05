@@ -146,10 +146,13 @@ Resources:
       Runtime: nodejs10.x
       Environment:
         Variables:
-          TABLE_NAME: !Ref ConnectionsTableName
+          CONNECTIONS_TABLE_NAME: !Ref ConnectionsTableName
+          MESSAGES_TABLE_NAME: !Ref MessagesTableName
       Policies:
       - DynamoDBCrudPolicy:
           TableName: !Ref ConnectionsTableName
+      - DynamoDBCrudPolicy:
+          TableName: !Ref MessagesTableName
   OnConnectPermission:
     Type: AWS::Lambda::Permission
     DependsOn:
