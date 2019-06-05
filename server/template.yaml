@@ -92,22 +92,32 @@ Resources:
       IntegrationUri: 
         Fn::Sub:
             arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SendMessageFunction.Arn}/invocations
-#  GetRoomsRoute:
-#    Type: AWS::ApiGatewayV2::Route
-#    Properties:
-#      ApiId: !Ref SimpleChatWebSocket
-#      RouteKey: getRooms
-#      AuthorizationType: NONE
-#      OperationName: GetRoomsRoute
-#      Target: !Join
-#        - '/'
-#        - - 'integrations'
-#          - !Ref GetRoomsInteg
+  GetRoomsRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref SimpleChatWebSocket
+      RouteKey: getRooms
+      AuthorizationType: NONE
+      OperationName: GetRoomsRoute
+      Target: !Join
+        - '/'
+        - - 'integrations'
+          - !Ref GetRoomsInteg
+  GetRoomsInteg:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref SimpleChatWebSocket
+      Description: Get Rooms Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::Sub:
+          arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetRoomsFunction.Arn}/invocations
   Deployment:
     Type: AWS::ApiGatewayV2::Deployment
     DependsOn:
     - ConnectRoute
     - SendRoute
+    - GetRoomsRoute
     - DisconnectRoute
     Properties:
       ApiId: !Ref SimpleChatWebSocket
@@ -226,6 +236,34 @@ Resources:
       Action: lambda:InvokeFunction
       FunctionName: !Ref SendMessageFunction
       Principal: apigateway.amazonaws.com
+  GetRoomsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: getRooms/
+      Handler: app.handler
+      MemorySize: 256
+      Runtime: nodejs10.x
+      Environment:
+        Variables:
+          ROOMS_TABLE_NAME: !Ref RoomsTableName
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RoomsTableName
+        - Statement:
+            - Effect: Allow
+              Action:
+                - 'execute-api:ManageConnections'
+              Resource:
+                - !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${SimpleChatWebSocket}/*'
+  GetRoomsPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - SimpleChatWebSocket
+      - GetRoomsFunction
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref GetRoomsFunction
+      Principal: apigateway.amazonaws.com
 
 Outputs:
   ConnectionsTableArn:
@@ -243,6 +281,10 @@ Outputs:
   SendMessageFunctionArn:
     Description: "SendMessage function ARN"
     Value: !GetAtt SendMessageFunction.Arn
+
+  GetRoomsFunctionArn:
+    Description: "GetRooms function ARN"
+    Value: !GetAtt GetRoomsFunction.Arn
 
   WebSocketURI:
     Description: "The WSS Protocol URI to connect to"

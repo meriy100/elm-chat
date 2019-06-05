@@ -60,6 +60,7 @@ exports.handler = async (event, context) => {
         console.log(`Found stale connection, deleting ${connectionId}`);
         await ddb.delete({ TableName: CONNECTIONS_TABLE_NAME, Key: { connectionId } }).promise();
       } else {
+        console.log(e);
         throw e;
       }
     }
