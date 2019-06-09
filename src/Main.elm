@@ -3,7 +3,7 @@ port module Main exposing (main)
 import Browser
 import Html exposing (Html)
 import Html.Attributes as Attributes exposing (..)
-import Html.Events exposing (..)
+import Html.Events as Events exposing (..)
 import Json.Encode as JE
 import Json.Decode as Decode exposing (decodeString, errorToString)
 import WebsocketResponse as WebsocketResponse
@@ -44,6 +44,7 @@ init _ =
 
 type Msg = Change String
     | Submit String
+    | SelectRoom Room
     | WebsocketIn String
     | WebsocketOnOpen String
 
@@ -62,6 +63,8 @@ update msg model =
       ( model
       , websocketOut ("{ \"action\": \"sendMessage\", \"data\": {  \"message\": { \"content\": \"" ++ value ++ "\" } } }")
       )
+    SelectRoom room ->
+      ( {model | messages = room.messages}, Cmd.none)
     WebsocketOnOpen _ ->
       (model, getRooms)
     WebsocketIn value ->
@@ -103,14 +106,37 @@ subscriptions model =
 li : String -> Html Msg
 li string = Html.li [] [Html.text string]
 
+listViewOrLoading : ((List a) -> List (Html Msg)) -> RequestStatus (List a) -> List (Html Msg)
+listViewOrLoading f r =
+    case r of
+        Loading ->
+            [Html.p [] [Html.text "Loading"] ]
+        Failed ->
+            [Html.p [] [Html.text "Failed"] ]
+        Loaded xs ->
+            f xs
+
+roomListItemView : Room -> Html Msg
+roomListItemView room =
+    Html.li [Events.onClick (SelectRoom room)] [Html.text room.id]
+roomListView : List Room -> List (Html Msg)
+roomListView rooms =
+    rooms
+    |> List.map roomListItemView
+
 view : Model -> Html Msg
-view model = Html.div []
-    --[ Html.form [HE.onSubmit (WebsocketIn model.input)] -- Short circuit to test without ports
-    [ Html.form [onSubmit (Submit model.input)]
-      [ Html.input [Attributes.placeholder "Enter some text.", Attributes.value model.input, onInput Change] []
-      , model.messages |> List.map .content |> List.map li |> Html.ol []
-      ]
-    , Html.div []
+view model = Html.div [Attributes.class "container"]
+    [ Html.div [Attributes.class "row"]
         [ Html.p [Attributes.style "color" "#f88"] [Html.text model.error]
+        ]
+    , Html.div [Attributes.class "row"]
+        [ Html.div [Attributes.class "two columns"]
+            (listViewOrLoading roomListView model.rooms)
+        , Html.div [Attributes.class "ten columns"]
+            [ Html.form [onSubmit (Submit model.input)]
+              [ Html.input [Attributes.placeholder "Enter some text.", Attributes.value model.input, onInput Change] []
+              , model.messages |> List.map .content |> List.map li |> Html.ol []
+              ]
+            ]
         ]
     ]
