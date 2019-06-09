@@ -32,17 +32,19 @@ type RequestStatus a =
 type alias Model =
     { messages : List Message
     , rooms : RequestStatus (List Room)
+    , selectedRoomId : Maybe String
     , input : String
     , error : String
     }
 
 init : () -> (Model, Cmd Msg)
 init _ =
-    ({ messages = [], rooms = Loading, input = "", error = "" }, Cmd.none)
+    ({ messages = [], rooms = Loading, selectedRoomId = Nothing, input = "", error = "" }, Cmd.none)
 
 {- UPDATE -}
 
-type Msg = Change String
+type Msg =
+    Change String
     | Submit String
     | SelectRoom Room
     | WebsocketIn String
@@ -61,10 +63,16 @@ update msg model =
       )
     Submit value ->
       ( model
-      , websocketOut ("{ \"action\": \"sendMessage\", \"data\": {  \"message\": { \"content\": \"" ++ value ++ "\" } } }")
+      ,  case model.selectedRoomId of
+            Just roomId ->
+              websocketOut ("{ \"action\": \"sendMessage\", \"roomId\": \"" ++ roomId  ++ "\", \"data\": {  \"message\": { \"content\": \"" ++ value ++ "\" } } }")
+            Nothing ->
+                Cmd.none
       )
     SelectRoom room ->
-      ( {model | messages = room.messages}, Cmd.none)
+      ( {model | messages = room.messages, selectedRoomId = Just room.id}
+      , websocketOut ("{ \"action\": \"selectRoom\", \"id\": \"" ++ room.id ++ "\" }")
+      )
     WebsocketOnOpen _ ->
       (model, getRooms)
     WebsocketIn value ->

@@ -2,3 +2,10 @@
 elm-stuff
 index.js
 node_modules/
+
+server/.idea/
+server/.aws-sam/
+server/packaged.yaml
+server/**/node_modules/
+server/**/package-lock.json
+server/bin/deploy

@@ -112,12 +112,33 @@ Resources:
       IntegrationUri:
         Fn::Sub:
           arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetRoomsFunction.Arn}/invocations
+  SelectRoomRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref SimpleChatWebSocket
+      RouteKey: selectRoom
+      AuthorizationType: NONE
+      OperationName: SelectRoomRoute
+      Target: !Join
+        - '/'
+        - - 'integrations'
+          - !Ref SelectRoomInteg
+  SelectRoomInteg:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref SimpleChatWebSocket
+      Description: Select Room Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::Sub:
+          arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SelectRoomFunction.Arn}/invocations
   Deployment:
     Type: AWS::ApiGatewayV2::Deployment
     DependsOn:
     - ConnectRoute
     - SendRoute
     - GetRoomsRoute
+    - SelectRoomRoute
     - DisconnectRoute
     Properties:
       ApiId: !Ref SimpleChatWebSocket
@@ -263,6 +284,37 @@ Resources:
     Properties:
       Action: lambda:InvokeFunction
       FunctionName: !Ref GetRoomsFunction
+      Principal: apigateway.amazonaws.com
+  SelectRoomFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: selectRoom/
+      Handler: app.handler
+      MemorySize: 256
+      Runtime: nodejs10.x
+      Environment:
+        Variables:
+          CONNECTIONS_TABLE_NAME: !Ref ConnectionsTableName
+          ROOMS_TABLE_NAME: !Ref RoomsTableName
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConnectionsTableName
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RoomsTableName
+        - Statement:
+            - Effect: Allow
+              Action:
+                - 'execute-api:ManageConnections'
+              Resource:
+                - !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${SimpleChatWebSocket}/*'
+  SelectRoomPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - SimpleChatWebSocket
+      - SelectRoomFunction
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref SelectRoomFunction
       Principal: apigateway.amazonaws.com
 
 Outputs:

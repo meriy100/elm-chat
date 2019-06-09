@@ -13,7 +13,7 @@ exports.handler = async (event, context) => {
   const connectionId = event.requestContext.connectionId;
 
   try {
-    connectionData = await ddb.scan({ TableName: CONNECTIONS_TABLE_NAME, ProjectionExpression: 'connectionId' }).promise();
+    connectionData = await ddb.scan({ TableName: CONNECTIONS_TABLE_NAME }).promise();
   } catch (e) {
     return { statusCode: 500, body: e.stack };
   }
@@ -23,10 +23,9 @@ exports.handler = async (event, context) => {
     endpoint: event.requestContext.domainName + '/' + event.requestContext.stage
   });
 
-  // const { id } = JSON.parse(event.body).id;
-  const id = '1';
+  const { roomId } = JSON.parse(event.body);
   const { message } = JSON.parse(event.body).data;
-  const roomData = await ddb.get({ TableName: ROOMS_TABLE_NAME, Key: { id: id } }).promise();
+  const roomData = await ddb.get({ TableName: ROOMS_TABLE_NAME, Key: { id: roomId } }).promise();
   const newMessage = { id: uuid.v1(), content: message.content, timestamp: Number(Math.floor(Date.now() / 1000)) };
 
   const params = {
@@ -52,7 +51,7 @@ exports.handler = async (event, context) => {
 
   const postData = JSON.stringify({ type: 'POSTED_MESSAGE', payload: newMessage });
 
-  const postCalls = connectionData.Items.map(async ({ connectionId }) => {
+  const postCalls = connectionData.Items.filter(c => c.roomId === roomId).map(async ({ connectionId }) => {
     try {
       await apigwManagementApi.postToConnection({ ConnectionId: connectionId, Data: postData }).promise();
     } catch (e) {
