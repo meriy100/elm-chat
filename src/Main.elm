@@ -5,9 +5,10 @@ import Html exposing (Html)
 import Html.Attributes as Attributes exposing (..)
 import Html.Events exposing (..)
 import Json.Encode as JE
-import Json.Decode exposing (decodeString, errorToString)
+import Json.Decode as Decode exposing (decodeString, errorToString)
 import WebsocketResponse as WebsocketResponse
 
+import Room as Room exposing (..)
 import Message as Message exposing (..)
 
 -- JavaScript usage: app.ports.websocketIn.send(response);
@@ -23,22 +24,21 @@ main = Browser.element
     , subscriptions = subscriptions
     }
 
-{- MODEL -}
+type RequestStatus a =
+    Loading
+    | Loaded a
+    | Failed
 
 type alias Model =
     { messages : List Message
+    , rooms : RequestStatus (List Room)
     , input : String
     , error : String
     }
 
 init : () -> (Model, Cmd Msg)
 init _ =
-    ( { messages = []
-      , input = ""
-      , error = ""
-      }
-    , Cmd.none
-    )
+    ({ messages = [], rooms = Loading, input = "", error = "" }, Cmd.none)
 
 {- UPDATE -}
 
@@ -76,12 +76,20 @@ update msg model =
                         ({ model | error = errorToString error}, Cmd.none)
                     Ok message ->
                         ( { model | messages = message :: model.messages }, Cmd.none)
+            Ok "GET_ROOMS" ->
+                let
+                   result =
+                       decodeString (WebsocketResponse.payloadDecoder (Decode.list Room.decoder)) value
+                in
+                case result of
+                    Err error ->
+                        ({ model | error = errorToString error}, Cmd.none)
+                    Ok rooms ->
+                        ( { model | rooms = Loaded rooms  }, Cmd.none)
             Ok _ ->
                 (model, Cmd.none)
             Err error ->
                 ({ model | error = errorToString error}, Cmd.none)
-
-{- SUBSCRIPTIONS -}
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
