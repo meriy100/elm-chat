@@ -4,7 +4,7 @@ import Browser
 import Html exposing (Html)
 import Html.Attributes as Attributes exposing (..)
 import Html.Events as Events exposing (..)
-import Json.Encode as JE
+import Json.Encode as Encode
 import Json.Decode as Decode exposing (decodeString, errorToString)
 import WebsocketResponse as WebsocketResponse
 
@@ -33,46 +33,55 @@ type alias Model =
     { messages : List Message
     , rooms : RequestStatus (List Room)
     , selectedRoomId : Maybe String
-    , input : String
+    , newMessage : Message
     , error : String
     }
 
 init : () -> (Model, Cmd Msg)
 init _ =
-    ({ messages = [], rooms = Loading, selectedRoomId = Nothing, input = "", error = "" }, Cmd.none)
+    ({ messages = [], rooms = Loading, selectedRoomId = Nothing, newMessage = Message.init, error = "" }, Cmd.none)
 
 {- UPDATE -}
 
 type Msg =
     Change String
-    | Submit String
+    | Submit Message
     | SelectRoom Room
     | WebsocketIn String
     | WebsocketOnOpen String
 
 getRooms : Cmd Msg
 getRooms =
-  websocketOut ("{ \"action\": \"getRooms\" }")
+    { action = WebsocketResponse.GetRooms, keys = [], payload = False }
+    |> WebsocketResponse.encoder Encode.bool
+    |> Encode.encode 0
+    |> websocketOut
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
     Change input ->
-      ( { model | input = input }
+      ( { model | newMessage = { id = Nothing, content = input } }
       , Cmd.none
       )
-    Submit value ->
+    Submit newMessage ->
       ( model
       ,  case model.selectedRoomId of
             Just roomId ->
-              websocketOut ("{ \"action\": \"sendMessage\", \"roomId\": \"" ++ roomId  ++ "\", \"data\": {  \"message\": { \"content\": \"" ++ value ++ "\" } } }")
+               {action = WebsocketResponse.SendMessage, keys = [{key = "roomId", value = roomId}], payload = newMessage}
+               |> WebsocketResponse.encoder Message.encoder
+               |> Encode.encode 0
+               |> websocketOut
             Nothing ->
                 Cmd.none
       )
     SelectRoom room ->
-      ( {model | messages = room.messages, selectedRoomId = Just room.id}
-      , websocketOut ("{ \"action\": \"selectRoom\", \"id\": \"" ++ room.id ++ "\" }")
-      )
+        ( {model | messages = room.messages, selectedRoomId = Just room.id}
+        , {action = WebsocketResponse.SelectRoom, keys = [{ key = "id", value = room.id }], payload = False }
+            |> WebsocketResponse.encoder Encode.bool
+            |> Encode.encode 0
+            |> websocketOut
+        )
     WebsocketOnOpen _ ->
       (model, getRooms)
     WebsocketIn value ->
@@ -141,8 +150,8 @@ view model = Html.div [Attributes.class "container"]
         [ Html.div [Attributes.class "two columns"]
             (listViewOrLoading roomListView model.rooms)
         , Html.div [Attributes.class "ten columns"]
-            [ Html.form [onSubmit (Submit model.input)]
-              [ Html.input [Attributes.placeholder "Enter some text.", Attributes.value model.input, onInput Change] []
+            [ Html.form [onSubmit (Submit model.newMessage)]
+              [ Html.input [Attributes.placeholder "Enter some text.", Attributes.value model.newMessage.content, onInput Change] []
               , model.messages |> List.map .content |> List.map li |> Html.ol []
               ]
             ]

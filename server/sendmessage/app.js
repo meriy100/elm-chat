@@ -23,8 +23,9 @@ exports.handler = async (event, context) => {
     endpoint: event.requestContext.domainName + '/' + event.requestContext.stage
   });
 
-  const { roomId } = JSON.parse(event.body);
-  const { message } = JSON.parse(event.body).data;
+  const request = JSON.parse(event.body);
+  const roomId = request.keys.roomId;
+  const message = request.payload;
   const roomData = await ddb.get({ TableName: ROOMS_TABLE_NAME, Key: { id: roomId } }).promise();
   const newMessage = { id: uuid.v1(), content: message.content, timestamp: Number(Math.floor(Date.now() / 1000)) };
 

@@ -9,7 +9,8 @@ const { CONNECTIONS_TABLE_NAME, ROOMS_TABLE_NAME } = process.env;
 
 exports.handler = async (event, context) => {
     const connectionId = event.requestContext.connectionId;
-    const roomData = await ddb.get({ TableName: ROOMS_TABLE_NAME, Key: { id: JSON.parse(event.body).id } }).promise();
+    const request = JSON.parse(event.body);
+    const roomData = await ddb.get({ TableName: ROOMS_TABLE_NAME, Key: { id: request.keys.id } }).promise();
     const params = {
         TableName: CONNECTIONS_TABLE_NAME,
         Key: {

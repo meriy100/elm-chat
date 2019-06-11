@@ -7,7 +7,7 @@ $ npm install -g elm-live
 ```
 
 ```sh
-$ elm-live src/Main.elm -- --output=index.js --debug
+$ elm-live src/Main.elm --pushstate -- --output=index.js --debug
 ```
 
 
