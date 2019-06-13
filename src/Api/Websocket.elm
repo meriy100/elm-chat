@@ -1,9 +1,15 @@
-module Api.Websocket exposing (..)
+port module Api.Websocket exposing (..)
 
 import Json.Decode as Decode exposing (..)
 import Json.Encode as Encode
 
 import Api.Websocket.Action as Action exposing (Action)
+
+-- JavaScript usage: app.ports.websocketIn.send(response);
+port websocketIn : (String -> msg) -> Sub msg
+-- JavaScript usage: app.ports.websocketOut.subscribe(handler);
+port websocketOut : String -> Cmd msg
+port websocketOnOpen : (String -> msg) -> Sub msg
 
 typeDecoder : Decoder String
 typeDecoder =

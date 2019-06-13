@@ -1,5 +1,10 @@
 module Page.Rooms exposing (..)
 
+import Json.Encode as Encode
+import Json.Decode as Decode
+
+import Api.Websocket as Websocket
+import Api.Websocket.Action as Action
 import Room as Room exposing (..)
 import Message as Message exposing (..)
 
@@ -27,6 +32,89 @@ type Msg =
     | SelectRoom Room
     | WebsocketIn String
     | WebsocketOnOpen String
+
+initModel : Model
+initModel =
+    { messages = []
+    , rooms = Loading
+    , selectedRoomId = Nothing
+    , newMessage = Message.init
+    , error = ""
+    }
+
+
+
+getRooms : Cmd Msg
+getRooms =
+    { action = Action.GetRooms, keys = [], payload = False }
+        |> Websocket.encoder Encode.bool
+        |> Encode.encode 0
+        |> Websocket.websocketOut
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        Change input ->
+            ( { model | newMessage = { id = Nothing, content = input } }
+            , Cmd.none
+            )
+
+        Submit newMessage ->
+            ( model
+            , case model.selectedRoomId of
+                Just roomId ->
+                    { action = Action.SendMessage, keys = [ { key = "roomId", value = roomId } ], payload = newMessage }
+                        |> Websocket.encoder Message.encoder
+                        |> Encode.encode 0
+                        |> Websocket.websocketOut
+
+                Nothing ->
+                    Cmd.none
+            )
+
+        SelectRoom room ->
+            ( { model | messages = room.messages, selectedRoomId = Just room.id }
+            , { action = Action.SelectRoom, keys = [ { key = "id", value = room.id } ], payload = False }
+                |> Websocket.encoder Encode.bool
+                |> Encode.encode 0
+                |> Websocket.websocketOut
+            )
+
+        WebsocketOnOpen _ ->
+            ( model, getRooms )
+
+        WebsocketIn value ->
+            case Decode.decodeString Websocket.typeDecoder value of
+                Ok "POSTED_MESSAGE" ->
+                    let
+                        result =
+                            Decode.decodeString (Websocket.payloadDecoder Message.decoder) value
+                    in
+                    case result of
+                        Err error ->
+                            ( { model | error = Decode.errorToString error }, Cmd.none )
+
+                        Ok message ->
+                            ( { model | messages = message :: model.messages }, Cmd.none )
+
+                Ok "GET_ROOMS" ->
+                    let
+                        result =
+                            Decode.decodeString (Websocket.payloadDecoder (Decode.list Room.decoder)) value
+                    in
+                    case result of
+                        Err error ->
+                            ( { model | error = Decode.errorToString error }, Cmd.none )
+
+                        Ok rooms ->
+                            ( { model | rooms = Loaded rooms }, Cmd.none )
+
+                Ok _ ->
+                    ( model, Cmd.none )
+
+                Err error ->
+                    ( { model | error = Decode.errorToString error }, Cmd.none )
 
 li : String -> Html Msg
 li string = Html.li [] [Html.text string]
