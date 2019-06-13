@@ -1,8 +1,9 @@
-module WebsocketResponse exposing (..)
+module Api.Websocket exposing (..)
 
 import Json.Decode as Decode exposing (..)
 import Json.Encode as Encode
 
+import Api.Websocket.Action as Action exposing (Action)
 
 typeDecoder : Decoder String
 typeDecoder =
@@ -10,11 +11,6 @@ typeDecoder =
 payloadDecoder : Decoder a -> Decoder a
 payloadDecoder decoder =
     Decode.field "payload" decoder
-
-type Action =
-    GetRooms
-    | SendMessage
-    | SelectRoom
 
 type alias Request a =
     { action : Action
@@ -27,16 +23,6 @@ type alias KeyPair =
     , value : String
     }
 
-actionToString : Action -> String
-actionToString action =
-    case action of
-        GetRooms ->
-            "getRooms"
-        SendMessage ->
-            "sendMessage"
-        SelectRoom ->
-            "selectRoom"
-
 keyPairsEncoder : List KeyPair -> Encode.Value
 keyPairsEncoder keyPairs =
     keyPairs
@@ -46,7 +32,7 @@ keyPairsEncoder keyPairs =
 encoder : (a -> Encode.Value) -> Request a -> Encode.Value
 encoder payloadEncoder request =
     Encode.object
-        [ ( "action", Encode.string (actionToString request.action) )
+        [ ( "action", Encode.string (Action.toString request.action) )
         , ( "keys", keyPairsEncoder request.keys)
         , ( "payload", payloadEncoder request.payload )
         ]
