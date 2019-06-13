@@ -11,9 +11,28 @@ port websocketIn : (String -> msg) -> Sub msg
 port websocketOut : String -> Cmd msg
 port websocketOnOpen : (String -> msg) -> Sub msg
 
-typeDecoder : Decoder String
+type ResponseType =
+    PostedMessage
+    | GetRooms
+    | SetRoomId
+    | UnDefined String
+
+stringToResponseType : String -> ResponseType
+stringToResponseType s =
+    case s of
+        "POSTED_MESSAGE" ->
+            PostedMessage
+        "GET_ROOMS" ->
+           GetRooms
+        "SET_ROOM_ID" ->
+           SetRoomId
+        other ->
+            UnDefined other
+
+
+typeDecoder : Decoder ResponseType
 typeDecoder =
-    Decode.field "type" Decode.string
+    Decode.field "type" (Decode.map stringToResponseType Decode.string)
 payloadDecoder : Decoder a -> Decoder a
 payloadDecoder decoder =
     Decode.field "payload" decoder

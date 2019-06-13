@@ -30,8 +30,11 @@ type Msg =
     Change String
     | Submit Message
     | SelectRoom Room
-    | WebsocketIn String
+    | PostedMessage (Result Decode.Error Message)
     | WebsocketOnOpen String
+    | UnDefined String
+    | RequestError Decode.Error
+    | GetRooms (Result Decode.Error (List Room))
 
 initModel : Model
 initModel =
@@ -41,7 +44,6 @@ initModel =
     , newMessage = Message.init
     , error = ""
     }
-
 
 
 getRooms : Cmd Msg
@@ -80,41 +82,30 @@ update msg model =
                 |> Encode.encode 0
                 |> Websocket.websocketOut
             )
-
         WebsocketOnOpen _ ->
             ( model, getRooms )
-
-        WebsocketIn value ->
-            case Decode.decodeString Websocket.typeDecoder value of
-                Ok "POSTED_MESSAGE" ->
-                    let
-                        result =
-                            Decode.decodeString (Websocket.payloadDecoder Message.decoder) value
-                    in
-                    case result of
-                        Err error ->
-                            ( { model | error = Decode.errorToString error }, Cmd.none )
-
-                        Ok message ->
-                            ( { model | messages = message :: model.messages }, Cmd.none )
-
-                Ok "GET_ROOMS" ->
-                    let
-                        result =
-                            Decode.decodeString (Websocket.payloadDecoder (Decode.list Room.decoder)) value
-                    in
-                    case result of
-                        Err error ->
-                            ( { model | error = Decode.errorToString error }, Cmd.none )
-
-                        Ok rooms ->
-                            ( { model | rooms = Loaded rooms }, Cmd.none )
-
-                Ok _ ->
-                    ( model, Cmd.none )
-
+        PostedMessage result ->
+            case result of
                 Err error ->
                     ( { model | error = Decode.errorToString error }, Cmd.none )
+
+                Ok message ->
+                    ( { model | messages = message :: model.messages }, Cmd.none )
+
+        GetRooms result  ->
+            case result of
+                Err error ->
+                    ( { model | error = Decode.errorToString error }, Cmd.none )
+
+                Ok rooms ->
+                    ( { model | rooms = Loaded rooms }, Cmd.none )
+
+        UnDefined t ->
+            ( { model | error = "Undefine Type: " ++ t }, Cmd.none )
+        RequestError error ->
+            ( { model | error = Decode.errorToString error }, Cmd.none )
+
+
 
 li : String -> Html Msg
 li string = Html.li [] [Html.text string]
